@@ -28,6 +28,20 @@ func (m *Machine) Generate(phone string, message string) (string, error) {
 		return "Hi, here is your Chat4Bread market platform. Who are you?", err
 	} else if user.Action == "onboarding" {
 		return m.Onboarding(user, message)
+	} else {
+		intent, err := m.CAI.Intent(message)
+		if err != nil {
+			return "", err
+		}
+
+		switch (intent.Slug) {
+		case "get_type_farmer":
+			fallthrough // Commonly misconception and not possible in this state.
+		case "pos_list":
+			return m.FarmersNearby(user, intent)
+		default:
+			return fmt.Sprintf("Got intent %s", intent.Slug), nil
+		}
 	}
 
 	log.Printf("Error state: action %s, requirements %v", user.Action, user.Reqs)
@@ -83,7 +97,7 @@ func (m *Machine) Onboarding(user *User, message string) (string, error) {
 				return "", err
 			}
 
-			err = m.ORM.PopRequirement(user)
+			err = m.ORM.ResetUserState(user)
 			if err != nil {
 				return "", err
 			}
@@ -105,4 +119,28 @@ func (m *Machine) Onboarding(user *User, message string) (string, error) {
 		return "", err
 	}
 	return "Welcome to the market. Have fun!", nil
+}
+
+// FarmersNearby returns a list of farmers near the users location.
+func (m *Machine) FarmersNearby(user *User, intent *Intent) (string, error) {
+	users, err := m.ORM.FindFarmersNear(user.Location.Coords[1],
+		user.Location.Coords[0], 2000)
+	if err != nil {
+		return "", err
+	}
+
+	msg := "We found the following farmers nearby:\n"
+	index := 1
+	for index, farmer := range users {
+		if (*farmer.Kind == "farmer" && user.ID != farmer.ID) {
+			msg += fmt.Sprintf("%d. **%s** (%.2f m)\n", index, *farmer.Name, farmer.Location.Distance)
+			index++
+		}
+	}
+
+	if index == 1 {
+		msg = "We could not find any farmers nearby. In the future we might notify you if something changed, but for now, please check from time to time if something changes."
+	}
+
+	return msg, nil
 }

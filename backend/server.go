@@ -40,6 +40,11 @@ func main() {
 
 	// Setup state machine
 	orm := NewORM(db, "chat4bread")
+	err = orm.CreateIndicies()
+	if err != nil {
+		log.Panic(err)
+	}
+
 	cai := NewCAI(*caiToken)
 	machine := NewMachine(orm, cai)
 
@@ -68,6 +73,7 @@ func main() {
 		}
 
 		msg := tgbotapi.NewMessage(update.Message.Chat.ID, reply)
+		msg.ParseMode = "markdown"
 		bot.Send(msg)
 	}
 
