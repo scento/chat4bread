@@ -38,7 +38,8 @@ func main() {
 	log.Printf("Connected to MongoDB database.")
 
 	// Setup state machine
-	machine := NewMachine(db)
+	orm := NewORM(db, "chat4bread")
+	machine := NewMachine(orm)
 
 	// Connect with Telegram
 	bot, err := tgbotapi.NewBotAPI(*botToken)
@@ -65,7 +66,6 @@ func main() {
 		}
 
 		msg := tgbotapi.NewMessage(update.Message.Chat.ID, reply)
-		msg.ReplyToMessageID = update.Message.MessageID
 		bot.Send(msg)
 	}
 

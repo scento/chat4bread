@@ -1,18 +1,33 @@
 package main
 
-import (
-	"go.mongodb.org/mongo-driver/mongo"
-)
-
+// Machine is the state machine for messaging actions.
 type Machine struct {
-	DB *mongo.Client
+	ORM *ORM
 }
 
-func NewMachine(db *mongo.Client) *Machine {
-	return &Machine{DB: db}
+// NewMachine initializes a new Machine.
+func NewMachine(orm *ORM) *Machine {
+	return &Machine{ORM: orm}
 }
 
-func (*Machine) Generate(user string, message string) (string, error) {
-	//@TODO implement state machine + database logic
-	return message, nil
+// Generate creates a response for a new incoming message.
+func (m *Machine) Generate(phone string, message string) (string, error) {
+	user, err := m.ORM.UserByPhone(phone)
+	if err != nil {
+		return "", err
+	}
+
+	if user == nil {
+		err = m.ORM.NewUser(phone)
+		return "Hi, here is your Chat4Bread market platform. Who are you?", err
+	} else if user.Action == "welcome" {
+		return m.Welcome(user, message)
+	}
+
+	return "Sorry, but I don't know what to say.", nil
+}
+
+// Welcome handles the initialization workflow of a new user.
+func (m *Machine) Welcome(user *User, message string) (string, error) {
+	return "Be welcomed!", nil
 }
