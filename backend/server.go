@@ -54,6 +54,11 @@ func main() {
 		log.Panic(err)
 	}
 	bot.Debug = true
+	machine.SendMessage = func(id int64, message string) error {
+		msg := tgbotapi.NewMessage(id, message)
+		_, err := bot.Send(msg)
+		return err
+	}
 
 	// Process messages
 	log.Printf("Authorized on Telegram bot account %s", bot.Self.UserName)
@@ -65,16 +70,18 @@ func main() {
 	}
 
 	for update := range updates {
-		log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
-		reply, err := machine.Generate(update.Message.From.UserName, update.Message.Text)
+		//log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
+		reply, err := machine.Generate(update.Message.Chat.ID, update.Message.Text)
 		if err != nil {
 			log.Printf("Error: %s", err.Error())
 			reply = fmt.Sprintf("Error: %s", err.Error())
 		}
 
 		msg := tgbotapi.NewMessage(update.Message.Chat.ID, reply)
-		msg.ParseMode = "markdown"
-		bot.Send(msg)
+		_, err = bot.Send(msg)
+		if err != nil {
+			log.Panic(err)
+		}
 	}
 
 	log.Printf("Stopping Chat4Bread Backend.")

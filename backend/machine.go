@@ -7,8 +7,9 @@ import (
 
 // Machine is the state machine for messaging actions.
 type Machine struct {
-	ORM *ORM
-	CAI *CAI
+	ORM         *ORM
+	CAI         *CAI
+	SendMessage func(id int64, message string) error
 }
 
 // NewMachine initializes a new Machine.
@@ -17,7 +18,7 @@ func NewMachine(orm *ORM, cai *CAI) *Machine {
 }
 
 // Generate creates a response for a new incoming message.
-func (m *Machine) Generate(phone string, message string) (string, error) {
+func (m *Machine) Generate(phone int64, message string) (string, error) {
 	user, err := m.ORM.UserByPhone(phone)
 	if err != nil {
 		return "", err
@@ -36,11 +37,13 @@ func (m *Machine) Generate(phone string, message string) (string, error) {
 
 		switch intent.Slug {
 		case "get_type_farmer":
-			fallthrough // Commonly misconception and not possible in this state.
+			fallthrough // Common misclassification and not possible in this state.
 		case "pos_list":
 			return m.FarmersNearby(user, intent)
 		case "sell":
 			return m.SellProduct(user, intent)
+		case "buy":
+			return m.BuyProduct(user, intent)
 		default:
 			return fmt.Sprintf("Got intent %s", intent.Slug), nil
 		}
@@ -135,7 +138,7 @@ func (m *Machine) FarmersNearby(user *User, intent *Intent) (string, error) {
 	index := 1
 	for index, farmer := range users {
 		if *farmer.Kind == "farmer" && user.ID != farmer.ID {
-			msg += fmt.Sprintf("%d. **%s** (%.2f m)\n", index, *farmer.Name, farmer.Location.Distance)
+			msg += fmt.Sprintf("%d. %s (%.2f m)\n", index, *farmer.Name, farmer.Location.Distance)
 			index++
 		}
 	}
@@ -174,4 +177,62 @@ func (m *Machine) SellProduct(user *User, intent *Intent) (string, error) {
 	}
 
 	return msg, err
+}
+
+// BuyProduct returns a workflow to buy a product from a farmer.
+func (m *Machine) BuyProduct(user *User, intent *Intent) (string, error) {
+	if intent.Product == "" || intent.Dollars == 0.0 || (intent.Mass == 0.0 && intent.Number == 0) {
+		return "It seems like you want to buy something. But we need to product, your price and a quantity to match your bid.", nil
+	}
+
+	// For a real implementation, do not create any products based on user input, maintain a list
+	// of supported products somewhere else.
+	product, err := m.ORM.FindOrCreateProduct(intent.Product)
+	if err != nil {
+		return "", err
+	}
+
+	if intent.Mass > 0.0 {
+		offer, merchant, err := m.ORM.FindMassOffer(product.ID, intent.Dollars, intent.Mass)
+		if err != nil {
+			return "", err
+		}
+		if offer == nil {
+			return "We are not able to fulfill your request. Please try again later.", nil
+		}
+
+		err = m.ORM.ReduceMassOffer(offer.ID, intent.Mass)
+		if err != nil {
+			return "", err
+		}
+
+		err = m.SendMessage(merchant.Phone, fmt.Sprintf("%s (%d) bought %.2fg of %s for %.2f$ from you.", *user.Name, user.Phone, intent.Mass, intent.Product, intent.Dollars))
+		if err != nil {
+			return "", err
+		}
+
+		return fmt.Sprintf("You bought %.2fg of %s from %s (%d) for %.2f$.", intent.Mass, intent.Product, *merchant.Name, merchant.Phone, intent.Dollars), nil
+	} else if intent.Number > 0 {
+		offer, merchant, err := m.ORM.FindUnitOffer(product.ID, intent.Dollars, uint64(intent.Number))
+		if err != nil {
+			return "", err
+		}
+		if offer == nil {
+			return "We are not able to fulfill your bid request. Please try again later.", nil
+		}
+
+		err = m.ORM.ReduceUnitOffer(offer.ID, uint64(intent.Number))
+		if err != nil {
+			return "", err
+		}
+
+		err = m.SendMessage(merchant.Phone, fmt.Sprintf("%s (%d) bought %d of %s for %.2f$ from you.", *user.Name, user.Phone, intent.Number, intent.Product, intent.Dollars))
+		if err != nil {
+			return "", err
+		}
+
+		return fmt.Sprintf("You bought %d of %s from %s (%d) for %.2f$.", intent.Number, intent.Product, *merchant.Name, merchant.Phone, intent.Dollars), nil
+	}
+
+	return "Please rephrase your buy request by specifying a positive unit number or mass.", nil
 }

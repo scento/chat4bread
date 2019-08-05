@@ -31,7 +31,7 @@ func MakeGeoJSONPnt(lat float64, lon float64) GeoJSON {
 // User object bundles all relevant information about an user.
 type User struct {
 	ID       primitive.ObjectID `bson:"_id"`
-	Phone    string             `bson:"phone"`
+	Phone    int64              `bson:"phone"`
 	Name     *string            `bson:"name"`
 	Location *GeoJSON           `bson:"location"`
 	Kind     *string            `bson:"kind"`
@@ -43,6 +43,17 @@ type User struct {
 type Product struct {
 	ID   primitive.ObjectID `bson:"_id"`
 	Name string             `bson:"name"`
+}
+
+// Offer object bundles all relevant information about an offer.
+type Offer struct {
+	ID              primitive.ObjectID `bson:"_id"`
+	Product         primitive.ObjectID `bson:"product"`
+	Seller          primitive.ObjectID `bson:"seller"`
+	Price           float64            `bson:"price"`
+	NormalizedPrice float64            `bson:"normalized_price"`
+	Mass            float64            `bson:"mass"`
+	Units           uint64             `bson:"units"`
 }
 
 // NewORM initializes the ORM.
@@ -61,7 +72,7 @@ func (orm *ORM) CreateIndicies() error {
 }
 
 // UserByPhone looks for a user by its phone number/username.
-func (orm *ORM) UserByPhone(phone string) (*User, error) {
+func (orm *ORM) UserByPhone(phone int64) (*User, error) {
 	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 	users := orm.DB.Collection("users")
 	var user User
@@ -76,7 +87,7 @@ func (orm *ORM) UserByPhone(phone string) (*User, error) {
 }
 
 // NewUser adds a new user to the system.
-func (orm *ORM) NewUser(phone string) error {
+func (orm *ORM) NewUser(phone int64) error {
 	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 	users := orm.DB.Collection("users")
 	_, err := users.InsertOne(ctx, bson.M{"phone": phone,
@@ -180,8 +191,8 @@ func (orm *ORM) FindOrCreateProduct(name string) (*Product, error) {
 func (orm *ORM) CreateMassOffer(user primitive.ObjectID, product primitive.ObjectID,
 	price float64, mass float64) error {
 	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
-	products := orm.DB.Collection("products")
-	_, err := products.InsertOne(ctx, bson.M{"product": product, "seller": user, "price": price, "mass": mass})
+	offers := orm.DB.Collection("offers")
+	_, err := offers.InsertOne(ctx, bson.M{"product": product, "seller": user, "price": price, "mass": mass, "normalized_price": price / mass})
 	return err
 }
 
@@ -189,7 +200,70 @@ func (orm *ORM) CreateMassOffer(user primitive.ObjectID, product primitive.Objec
 func (orm *ORM) CreateUnitOffer(user primitive.ObjectID, product primitive.ObjectID,
 	price float64, units uint64) error {
 	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
-	products := orm.DB.Collection("products")
-	_, err := products.InsertOne(ctx, bson.M{"product": product, "seller": user, "price": price, "units": units})
+	offers := orm.DB.Collection("offers")
+	_, err := offers.InsertOne(ctx, bson.M{"product": product, "seller": user, "price": price, "units": units, "normalized_price": price / float64(units)})
+	return err
+}
+
+// FindMassOffer finds a offer fulfilling pricing criterea.
+func (orm *ORM) FindMassOffer(product primitive.ObjectID, price float64, mass float64) (*Offer,
+	*User, error) {
+	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+	offers := orm.DB.Collection("offers")
+	var offer Offer
+	err := offers.FindOne(ctx, bson.M{"product": product, "mass": bson.M{"$gt": mass}, "normalized_price": bson.M{"$lt": price / mass}}).Decode(&offer)
+	if err == mongo.ErrNoDocuments {
+		return nil, nil, nil
+	} else if err != nil {
+		return nil, nil, err
+	}
+
+	users := orm.DB.Collection("users")
+	var user User
+	err = users.FindOne(ctx, bson.M{"_id": offer.Seller}).Decode(&user)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return &offer, &user, nil
+}
+
+// FindUnitOffer finds a offer fulfilling pricing criterea.
+func (orm *ORM) FindUnitOffer(product primitive.ObjectID, price float64, units uint64) (*Offer,
+	*User, error) {
+	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+	offers := orm.DB.Collection("offers")
+	var offer Offer
+	err := offers.FindOne(ctx, bson.M{"product": product, "units": bson.M{"$gt": units}, "normalized_price": bson.M{"$lt": price / float64(units)}}).Decode(&offer)
+	if err == mongo.ErrNoDocuments {
+		return nil, nil, nil
+	} else if err != nil {
+		return nil, nil, err
+	}
+
+	users := orm.DB.Collection("users")
+	var user User
+	err = users.FindOne(ctx, bson.M{"_id": offer.Seller}).Decode(&user)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return &offer, &user, nil
+}
+
+// ReduceMassOffer reduces the publicly available offer by a specific mass.
+func (orm *ORM) ReduceMassOffer(offer primitive.ObjectID, mass float64) error {
+	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+	users := orm.DB.Collection("users")
+	_, err := users.UpdateOne(ctx, bson.M{"_id": offer}, bson.M{"$inc": bson.M{"mass": -1 * mass}})
+	return err
+}
+
+// ReduceUnitOffer reduces the publicly available offer by a specific amount.
+func (orm *ORM) ReduceUnitOffer(offer primitive.ObjectID, units uint64) error {
+	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+	users := orm.DB.Collection("users")
+	_, err := users.UpdateOne(ctx, bson.M{"_id": offer},
+		bson.M{"$inc": bson.M{"units": -1 * int64(units)}})
 	return err
 }
