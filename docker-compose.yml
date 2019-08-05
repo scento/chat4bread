@@ -10,3 +10,4 @@ services:
         build: backend
         environment:
             TELEGRAM_BOT_TOKEN: ${TELEGRAM_TOKEN}
+            SAP_CAI_TOKEN: ${CAI_TOKEN}
