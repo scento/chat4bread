@@ -3,11 +3,12 @@ package main
 // Machine is the state machine for messaging actions.
 type Machine struct {
 	ORM *ORM
+	CAI *CAI
 }
 
 // NewMachine initializes a new Machine.
-func NewMachine(orm *ORM) *Machine {
-	return &Machine{ORM: orm}
+func NewMachine(orm *ORM, cai *CAI) *Machine {
+	return &Machine{ORM: orm, CAI: cai}
 }
 
 // Generate creates a response for a new incoming message.

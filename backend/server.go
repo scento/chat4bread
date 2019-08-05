@@ -13,10 +13,11 @@ import (
 )
 
 func main() {
-	var botToken = flag.String("token", "", "Telegram bot token")
+	var botToken = flag.String("tgtoken", "", "Telegram bot token")
+	var caiToken = flag.String("saptoken", "", "CAI token")
 	flag.Parse()
 
-	if botToken == nil || *botToken == "" {
+	if botToken == nil || *botToken == "" || caiToken == nil || *caiToken == "" {
 		fmt.Println("Usage:")
 		flag.PrintDefaults()
 		return
@@ -39,7 +40,8 @@ func main() {
 
 	// Setup state machine
 	orm := NewORM(db, "chat4bread")
-	machine := NewMachine(orm)
+	cai := NewCAI(*caiToken)
+	machine := NewMachine(orm, cai)
 
 	// Connect with Telegram
 	bot, err := tgbotapi.NewBotAPI(*botToken)
