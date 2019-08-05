@@ -52,7 +52,7 @@ func (orm *ORM) UserByPhone(phone string) (*User, error) {
 func (orm *ORM) NewUser(phone string) error {
 	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 	users := orm.DB.Collection("users")
-	_, err := users.InsertOne(ctx, bson.M{"action": "welcome",
-		"requirements": []string{"name", "location", "type"}})
+	_, err := users.InsertOne(ctx, bson.M{"phone": phone,
+		"action": "welcome", "requirements": []string{"name", "location", "type"}})
 	return err
 }
