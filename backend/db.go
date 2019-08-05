@@ -5,6 +5,8 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/x/bsonx"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"time"
 )
 
@@ -17,6 +19,7 @@ type ORM struct {
 type GeoJSON struct {
 	Type   string `bson:"type"`
 	Coords []float64  `bson:"coordinates"`
+	Distance float64 `bson:"distance"`
 }
 
 // MakeGeoJSONPnt creates a new GeoJSON point.
@@ -39,6 +42,16 @@ type User struct {
 // NewORM initializes the ORM.
 func NewORM(client *mongo.Client, database string) *ORM {
 	return &ORM{DB: client.Database(database)}
+}
+
+// CreateIndicies initializes the ORM indicies.
+func (orm *ORM) CreateIndicies() error {
+	index := mongo.IndexModel{Keys: bsonx.Doc{{"location", bsonx.String("2dsphere")}},
+	Options: options.Index().SetName("user-loc-2dsphere")}
+	ctx, _ := context.WithTimeout(context.Background(), 30*time.Second)
+	users := orm.DB.Collection("users")
+	_, err := users.Indexes().CreateOne(ctx, index)
+	return err
 }
 
 // UserByPhone looks for a user by its phone number/username.
@@ -105,4 +118,30 @@ func (orm *ORM) PopRequirement(user *User) error {
 	users := orm.DB.Collection("users")
 	_, err := users.UpdateOne(ctx, bson.M{"_id": user.ID}, bson.M{"$pop": bson.M{"requirements": -1}})
 	return err
+}
+
+// FindFarmersNear finds farmers near a geo point within a specific range in meters.
+func (orm *ORM) FindFarmersNear(lat float64, lng float64, dist float64) ([]User, error) {
+	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+	collection := orm.DB.Collection("users")
+	cur, err := collection.Aggregate(ctx, []bson.M{bson.M{"$geoNear": bson.M{"near": MakeGeoJSONPnt(lat, lng), "minDistance": 0, "maxDistance": dist, "distanceField": "location.distance", "spherical": true}}})
+	if err != nil {
+		return nil, err
+	}
+	defer cur.Close(ctx)
+	var users []User
+	for cur.Next(ctx) {
+		var user User
+		err := cur.Decode(&user)
+		if err != nil {
+			return nil, err
+		}
+		users = append(users, user)
+	}
+
+	if err := cur.Err(); err != nil {
+		return nil, err
+	}
+
+	return users, nil
 }
