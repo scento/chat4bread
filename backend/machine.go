@@ -34,11 +34,13 @@ func (m *Machine) Generate(phone string, message string) (string, error) {
 			return "", err
 		}
 
-		switch (intent.Slug) {
+		switch intent.Slug {
 		case "get_type_farmer":
 			fallthrough // Commonly misconception and not possible in this state.
 		case "pos_list":
 			return m.FarmersNearby(user, intent)
+		case "sell":
+			return m.SellProduct(user, intent)
 		default:
 			return fmt.Sprintf("Got intent %s", intent.Slug), nil
 		}
@@ -132,7 +134,7 @@ func (m *Machine) FarmersNearby(user *User, intent *Intent) (string, error) {
 	msg := "We found the following farmers nearby:\n"
 	index := 1
 	for index, farmer := range users {
-		if (*farmer.Kind == "farmer" && user.ID != farmer.ID) {
+		if *farmer.Kind == "farmer" && user.ID != farmer.ID {
 			msg += fmt.Sprintf("%d. **%s** (%.2f m)\n", index, *farmer.Name, farmer.Location.Distance)
 			index++
 		}
@@ -143,4 +145,33 @@ func (m *Machine) FarmersNearby(user *User, intent *Intent) (string, error) {
 	}
 
 	return msg, nil
+}
+
+// SellProduct returns a workflow to sell a product as a farmer.
+func (m *Machine) SellProduct(user *User, intent *Intent) (string, error) {
+	if user.Kind == nil || *user.Kind != "farmer" {
+		return "You registered as a consumer. It is currently not possible to switch the account type without resetting it.", nil
+	}
+
+	if intent.Product == "" || intent.Dollars == 0.0 || (intent.Mass == 0.0 && intent.Number == 0) {
+		return "It seems like you want to sell something, but we either didn't get the product, price or the amount you want to sell. Please retry with all required information.", nil
+	}
+
+	product, err := m.ORM.FindOrCreateProduct(intent.Product)
+	if err != nil {
+		return "", err
+	}
+
+	var msg string
+	if intent.Mass > 0.0 {
+		err = m.ORM.CreateMassOffer(user.ID, product.ID, intent.Dollars, intent.Mass)
+		msg = fmt.Sprintf("We created a new offer. You are selling %dg of %s for %.2f$.", uint(intent.Mass), intent.Product, intent.Dollars)
+	} else if intent.Number > 0 {
+		err = m.ORM.CreateUnitOffer(user.ID, product.ID, intent.Dollars, uint64(intent.Number))
+		msg = fmt.Sprintf("We created a new offer. You are selling %d %s for %.2f$.", uint(intent.Number), intent.Product, intent.Dollars)
+	} else {
+		msg = "Please retry while specifying a mass or unit number greater than zero."
+	}
+
+	return msg, err
 }

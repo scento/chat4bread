@@ -2,11 +2,12 @@ package main
 
 import (
 	"context"
+	"errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/x/bsonx"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/x/bsonx"
 	"time"
 )
 
@@ -17,9 +18,9 @@ type ORM struct {
 
 // GeoJSON defines geometric structures such that we can use MongoDB GIS operations.
 type GeoJSON struct {
-	Type   string `bson:"type"`
-	Coords []float64  `bson:"coordinates"`
-	Distance float64 `bson:"distance"`
+	Type     string    `bson:"type"`
+	Coords   []float64 `bson:"coordinates"`
+	Distance float64   `bson:"distance"`
 }
 
 // MakeGeoJSONPnt creates a new GeoJSON point.
@@ -27,16 +28,21 @@ func MakeGeoJSONPnt(lat float64, lon float64) GeoJSON {
 	return GeoJSON{Type: "Point", Coords: []float64{lon, lat}}
 }
 
-// User object bundling all relevant information about an user.
+// User object bundles all relevant information about an user.
 type User struct {
 	ID       primitive.ObjectID `bson:"_id"`
 	Phone    string             `bson:"phone"`
 	Name     *string            `bson:"name"`
 	Location *GeoJSON           `bson:"location"`
-	Kind 	 *string 			`bson:"kind"`
+	Kind     *string            `bson:"kind"`
+	Action   string             `bson:"action"`
+	Reqs     []string           `bson:"requirements"`
+}
 
-	Action string   `bson:"action"`
-	Reqs   []string `bson:"requirements"`
+// Product object bundles all relevant information about a product.
+type Product struct {
+	ID   primitive.ObjectID `bson:"_id"`
+	Name string             `bson:"name"`
 }
 
 // NewORM initializes the ORM.
@@ -47,7 +53,7 @@ func NewORM(client *mongo.Client, database string) *ORM {
 // CreateIndicies initializes the ORM indicies.
 func (orm *ORM) CreateIndicies() error {
 	index := mongo.IndexModel{Keys: bsonx.Doc{{"location", bsonx.String("2dsphere")}},
-	Options: options.Index().SetName("user-loc-2dsphere")}
+		Options: options.Index().SetName("user-loc-2dsphere")}
 	ctx, _ := context.WithTimeout(context.Background(), 30*time.Second)
 	users := orm.DB.Collection("users")
 	_, err := users.Indexes().CreateOne(ctx, index)
@@ -99,8 +105,7 @@ func (orm *ORM) SetUserName(user *User, name string) error {
 func (orm *ORM) SetUserLocation(user *User, lat float64, lng float64) error {
 	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 	users := orm.DB.Collection("users")
-	_, err := users.UpdateOne(ctx, bson.M{"_id": user.ID}, bson.M{"$set":
-		bson.M{"location": MakeGeoJSONPnt(lat, lng)}})
+	_, err := users.UpdateOne(ctx, bson.M{"_id": user.ID}, bson.M{"$set": bson.M{"location": MakeGeoJSONPnt(lat, lng)}})
 	return err
 }
 
@@ -144,4 +149,47 @@ func (orm *ORM) FindFarmersNear(lat float64, lng float64, dist float64) ([]User,
 	}
 
 	return users, nil
+}
+
+// FindOrCreateProduct finds a product or creates a new one.
+func (orm *ORM) FindOrCreateProduct(name string) (*Product, error) {
+	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+	products := orm.DB.Collection("products")
+
+	// In a real implementation, please use something atomic.
+	var product Product
+	err := products.FindOne(ctx, bson.M{"name": name}).Decode(&product)
+	if err == mongo.ErrNoDocuments {
+		res, err := products.InsertOne(ctx, bson.M{"name": name})
+		if err != nil {
+			return nil, err
+		}
+		if insertedID, ok := res.InsertedID.(primitive.ObjectID); ok {
+			return &Product{ID: insertedID, Name: name}, nil
+		}
+		return nil, errors.New("Cannot convert ObjectID.")
+	} else if err != nil {
+		return nil, err
+	}
+
+	return &product, err
+
+}
+
+// CreateMassOffer creates a new offer based on a specific mass.
+func (orm *ORM) CreateMassOffer(user primitive.ObjectID, product primitive.ObjectID,
+	price float64, mass float64) error {
+	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+	products := orm.DB.Collection("products")
+	_, err := products.InsertOne(ctx, bson.M{"product": product, "seller": user, "price": price, "mass": mass})
+	return err
+}
+
+// CreateUnitOffer creates a new offer based on a number of units to sell.
+func (orm *ORM) CreateUnitOffer(user primitive.ObjectID, product primitive.ObjectID,
+	price float64, units uint64) error {
+	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+	products := orm.DB.Collection("products")
+	_, err := products.InsertOne(ctx, bson.M{"product": product, "seller": user, "price": price, "units": units})
+	return err
 }
