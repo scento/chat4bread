@@ -3,9 +3,9 @@
 Chat4Bread is a hackathon prototype by Jannik Peters, Mirko Krause and Wenzel Pünter trying to help local farmers in Cameroon with
 selling their goods through a SMS-based chatbot marketplace. This reduces the entry barriers for basic commericial activities.
 
-> This is the second iteration of the hackathon project. It does some major design changes to
+> This is the second iteration of the hackathon project. It contains some major design changes to
 > support the testing process and removes dependencies to Twilio which caused financial losses
-> at the developers side. Instead, Telegram bots will be used to simulate the SMS behavior.
+> at the developers side. Telegram bots will be used to simulate the SMS behavior.
 
 ## Deployment
 
@@ -19,3 +19,5 @@ export CAI_TOKEN={your SAP CAI token}
 
 docker-compose up
 ```
+
+If you didn't forked the NLP project, you can use the token `d363362493ea638ec0a529773316feec` for CAI.
