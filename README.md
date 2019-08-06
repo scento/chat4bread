@@ -12,11 +12,11 @@ This reduces the entry barriers for basic commericial activities. The challenge 
 
 ## Features
 
-- Onboarding process asking you for your name, location and role
+- Onboarding
 - Find local farmers nearby
-- Sell products
-- Buy products
-- Find the current average market prices for a product
+- Sell a product
+- Buy a product
+- Quote average market prices for a product
 
 ## Known Bugs
 
