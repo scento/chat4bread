@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"flag"
+	"os"
 	"fmt"
 	"github.com/go-telegram-bot-api/telegram-bot-api"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -13,21 +13,13 @@ import (
 )
 
 func main() {
-	var botToken = flag.String("tgtoken", "", "Telegram bot token")
-	var caiToken = flag.String("saptoken", "", "CAI token")
-	flag.Parse()
-
-	if botToken == nil || *botToken == "" || caiToken == nil || *caiToken == "" {
-		fmt.Println("Usage:")
-		flag.PrintDefaults()
-		return
-	}
-
 	log.Printf("Starting Chat4Bread Backend.")
 
 	// Connect with MongoDB
 	ctx, _ := context.WithTimeout(context.Background(), 30*time.Second)
-	db, err := mongo.Connect(ctx, options.Client().ApplyURI("mongodb://database:27017"))
+	dburi := fmt.Sprintf("mongodb://%s:%s@database:27017", os.Getenv("MONGO_USERNAME"), os.Getenv("MONGO_PASSWORD"))
+	log.Printf("Connecting to MongoDB database: %s.", dburi)
+	db, err := mongo.Connect(ctx, options.Client().ApplyURI(dburi))
 	if err != nil {
 		log.Panic(err)
 	}
@@ -45,15 +37,15 @@ func main() {
 		log.Panic(err)
 	}
 
-	cai := NewCAI(*caiToken)
+	cai := NewCAI(os.Getenv("CAI_TOKEN"))
 	machine := NewMachine(orm, cai)
 
 	// Connect with Telegram
-	bot, err := tgbotapi.NewBotAPI(*botToken)
+	bot, err := tgbotapi.NewBotAPI(os.Getenv("TELEGRAM_TOKEN"))
 	if err != nil {
 		log.Panic(err)
 	}
-	bot.Debug = true
+	//bot.Debug = true
 	machine.SendMessage = func(id int64, message string) error {
 		msg := tgbotapi.NewMessage(id, message)
 		_, err := bot.Send(msg)

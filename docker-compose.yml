@@ -9,5 +9,7 @@ services:
     backend:
         build: backend
         environment:
-            TELEGRAM_BOT_TOKEN: ${TELEGRAM_TOKEN}
-            SAP_CAI_TOKEN: ${CAI_TOKEN}
+            MONGO_USERNAME: ${MONGO_USERNAME}
+            MONGO_PASSWORD: ${MONGO_PASSWORD}
+            TELEGRAM_TOKEN: ${TELEGRAM_TOKEN}
+            CAI_TOKEN: ${CAI_TOKEN}
