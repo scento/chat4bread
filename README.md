@@ -62,3 +62,16 @@ server {
 }
 
 ```
+
+## Debugging
+### Getting direct database access
+```
+docker exec -it chat4bread-database /bin/bash
+$ mongo
+> use admin
+> db.auth("{your MongoDB username}", "{your MongoDB password}")
+> use chat4bread
+> show collections
+> db.users.find()
+...
+```
