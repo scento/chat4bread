@@ -41,12 +41,14 @@ func (m *Machine) Generate(phone int64, message string) (string, error) {
 				return "Hi, this is your Chat4Bread market platform. You can buy/sell goods, lookup prices and find other farmers.", nil
 			}
 			return "Hi, this is your Chat4Bread market platform. You can buy goods, lookup prices and find farmers.", nil
-		case "get_type_farmer":
-			fallthrough // Common misclassification and not possible in this state.
 		case "pos_list":
 			return m.FarmersNearby(user, intent)
+		case "get_type_farmer":
+			fallthrough // Common misclassification and not possible in this state.
 		case "sell":
 			return m.SellProduct(user, intent)
+		case "get_type_buyer":
+			fallthrough // Common misclassification and not possible in this state.
 		case "buy":
 			return m.BuyProduct(user, intent)
 		case "price-question":
