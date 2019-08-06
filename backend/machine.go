@@ -49,8 +49,10 @@ func (m *Machine) Generate(phone int64, message string) (string, error) {
 			return m.SellProduct(user, intent)
 		case "buy":
 			return m.BuyProduct(user, intent)
+		case "price-question":
+			return m.MarketPrices(intent)
 		default:
-			return fmt.Sprintf("Got intent %s", intent.Slug), nil
+			return fmt.Sprintf("Hey %s, we think you want to do %s, but this is not yet available.", *user.Name, intent.Slug), nil
 		}
 	}
 
@@ -120,7 +122,7 @@ func (m *Machine) Onboarding(user *User, message string) (string, error) {
 					" the current market prices for your goods.", nil
 			}
 		default:
-			return fmt.Sprintf("Unknown requirement %s", user.Reqs[0]), nil
+			return fmt.Sprintf("We think you want to do %s, but please register first.", user.Reqs[0]), nil
 		}
 	}
 
@@ -191,7 +193,7 @@ func (m *Machine) BuyProduct(user *User, intent *Intent) (string, error) {
 	}
 
 	// For a real implementation, do not create any products based on user input, maintain a list
-	// of supported products somewhere else.
+	// of supported products somewhere else and care about singular forms.
 	product, err := m.ORM.FindOrCreateProduct(intent.Product)
 	if err != nil {
 		return "", err
@@ -240,4 +242,28 @@ func (m *Machine) BuyProduct(user *User, intent *Intent) (string, error) {
 	}
 
 	return "Please rephrase your buy request by specifying a positive unit number or mass.", nil
+}
+
+// MarketPrices returns the market price for a product.
+func (m *Machine) MarketPrices(intent *Intent) (string, error) {
+	if intent.Product == "" {
+		return "Please rephrase your request and indicate which product you are looking for.", nil
+	}
+
+	// For a real implementation, do not create any products based on user input, maintain a list
+	// of supported products somewhere else and care about singular forms.
+	product, err := m.ORM.FindOrCreateProduct(intent.Product)
+	if err != nil {
+		return "", err
+	}
+
+	price, err := m.ORM.GetAveragePrice(product.ID)
+	if err != nil {
+		return "", err
+	}
+	if price == nil {
+		return "There are currently no offers for this product.", nil
+	}
+
+	return fmt.Sprintf("The average price per gram/unit is %.2f$.", *price), nil
 }

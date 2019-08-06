@@ -267,3 +267,26 @@ func (orm *ORM) ReduceUnitOffer(offer primitive.ObjectID, units uint64) error {
 		bson.M{"$inc": bson.M{"units": (-1 * int64(units))}})
 	return err
 }
+
+// GetAveragePrice returns the average price for a product.
+func (orm *ORM) GetAveragePrice(product primitive.ObjectID) (*float64, error) {
+	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+	collection := orm.DB.Collection("offers")
+	cur, err := collection.Aggregate(ctx, []bson.M{bson.M{"$group": bson.M{"_id": "$product", "avgPrice": bson.M{"$avg": "$normalized_price"}}}, bson.M{"$match": bson.M{"_id": product}}})
+	if err != nil {
+		return nil, err
+	}
+	defer cur.Close(ctx)
+	for cur.Next(ctx) {
+		var agg bson.M
+		err := cur.Decode(&agg)
+		if err != nil {
+			return nil, err
+		}
+		if val, ok := agg["avgPrice"].(float64); ok {
+			return &val, nil
+		}
+	}
+
+	return nil, nil
+}
