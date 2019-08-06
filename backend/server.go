@@ -2,13 +2,14 @@ package main
 
 import (
 	"context"
-	"os"
 	"fmt"
 	"github.com/go-telegram-bot-api/telegram-bot-api"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
 	"log"
+	"net/http"
+	"os"
 	"time"
 )
 
@@ -54,13 +55,34 @@ func main() {
 
 	// Process messages
 	log.Printf("Authorized on Telegram bot account %s", bot.Self.UserName)
-	u := tgbotapi.NewUpdate(0)
-	u.Timeout = 60
-	updates, err := bot.GetUpdatesChan(u)
-	if err != nil {
-		log.Panic(err)
-	}
 
+	/*
+	 */
+
+	var updates tgbotapi.UpdatesChannel
+
+	if os.Getenv("TELEGRAM_WEBHOOK_URL") == "" {
+		u := tgbotapi.NewUpdate(0)
+		u.Timeout = 60
+		updates, err = bot.GetUpdatesChan(u)
+		if err != nil {
+			log.Panic(err)
+		}
+	} else {
+		_, err = bot.SetWebhook(tgbotapi.NewWebhook(os.Getenv("TELEGRAM_WEBHOOK_URL") + bot.Token))
+		if err != nil {
+			log.Fatal(err)
+		}
+		info, err := bot.GetWebhookInfo()
+		if err != nil {
+			log.Fatal(err)
+		}
+		if info.LastErrorDate != 0 {
+			log.Printf("Telegram callback last failed: %s", info.LastErrorMessage)
+		}
+		updates = bot.ListenForWebhook("/" + bot.Token)
+		go http.ListenAndServe("0.0.0.0:8080", nil)
+	}
 	for update := range updates {
 		//log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
 		reply, err := machine.Generate(update.Message.Chat.ID, update.Message.Text)

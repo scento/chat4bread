@@ -1,15 +1,24 @@
 version: '3'
 services:
     database:
+        container_name: chat4bread-database
         image: mongo:3.4
         restart: always
         environment:
             MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME}
             MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+        volumes:
+            - mongo_data:/data/db
     backend:
+        container_name: chat4bread-tg-bot
         build: backend
         environment:
             MONGO_USERNAME: ${MONGO_USERNAME}
             MONGO_PASSWORD: ${MONGO_PASSWORD}
             TELEGRAM_TOKEN: ${TELEGRAM_TOKEN}
             CAI_TOKEN: ${CAI_TOKEN}
+            TELEGRAM_WEBHOOK_URL: ${TELEGRAM_WEBHOOK_URL}
+        ports:
+            - "8081:8080"
+volumes:
+    mongo_data:
