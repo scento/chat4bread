@@ -10,6 +10,16 @@ This reduces the entry barriers for basic commericial activities. The challenge 
 > support the testing process and removes dependencies to Twilio which caused financial losses
 > at the developers side. Telegram bots will be used to simulate the SMS behavior.
 
+## Known Bugs
+
+- **Intent Misclassification**: As we are using very few sentence samples and do not separate the onboarding and usage steps, it frequently happens that the bot misinterprets requests. Well known cases include the question "Are you a farmer or consumer?".
+- **Missing Distance Metric**: We currently do not enforce the geoposition of offers. In consequence, it is possible to find a trade at the other end of the planet.
+- **Self-Trading**: It is possible to trade with the own account. This was deliberately left over for debugging purposes but might be strange.
+- **Database Maintancence**: Offers are not removed from the database even when everything is sold.
+- **No trade aggregation**: We are only matching a single trade without the possibility to combine multiple vendors.
+- **No confirmations**: All actions are performed directly without intermediate acceptance questions, which might cause bugs.
+- **No data maintenance**: It is only possible to remove or change personal data by contacting the database administrator.
+
 ## Deployment
 
 Obtain a [Telegram bot token](https://www.siteguarding.com/en/how-to-get-telegram-bot-api-token)
