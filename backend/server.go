@@ -56,9 +56,6 @@ func main() {
 	// Process messages
 	log.Printf("Authorized on Telegram bot account %s", bot.Self.UserName)
 
-	/*
-	 */
-
 	var updates tgbotapi.UpdatesChannel
 
 	if os.Getenv("TELEGRAM_WEBHOOK_URL") == "" {
