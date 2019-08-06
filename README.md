@@ -2,6 +2,7 @@
 
 Chat4Bread is a hackathon prototype by Jannik Peters, Mirko Krause and Wenzel Pünter trying to help local farmers in Cameroon with
 selling their goods through a SMS-based chatbot marketplace. This reduces the entry barriers for basic commericial activities.
+The challenge was sponsored by [Brot für die Welt](https://www.brot-fuer-die-welt.de/) and [Capgemini](https://www.capgemini.com).
 
 > This is the second iteration of the hackathon project. It contains some major design changes to
 > support the testing process and removes dependencies to Twilio which caused financial losses
