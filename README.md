@@ -30,31 +30,20 @@ docker-compose up
 If you did no changes to the NLP project, you can use the token `d363362493ea638ec0a529773316feec`
 for CAI.
 
-To keep the bot running in the background use
-```
-docker-compose up -d
-```
-as the final statement.
+To keep the bot running in the background use `docker-compose up -d` as the final statement.
 
-When the bot is started for the first time a new docker volume will be created to store the data of the Mongo DB. Therefore, the containers can be recreated as necessary. To empty the database shut down the containers and remove the volume. You can get its name using:
-```bash
-docker volume ls
-```
-and searching for ..._mongo_data. After getting the name, the volume can be removed using:
-```bash
-docker volume rm [volume name]
-```
+When the bot is started for the first time a new docker volume will be created to store the data of the Mongo DB. Therefore, the containers can be recreated as necessary. To empty the database shut down the containers and remove the volume. You can get its name using `docker volume ls` and search for `..._mongo_data`. After getting the name, the volume can be removed using `docker volume rm [volume name]`.
 
 ### Using Telegram Web Hooks
-You can also use telegram web hooks. Using those, Telegram will perform a REST request to your server as soon as a new message arrives. This method replaces the default long polling approach, where the backend (a.k.a. the bot) performs many iterative requests no matter if there are new messages or not. Therefore, web hooks are less resource intensive, but you need a publicly reachable, SSL-secured (https) website for this. There should be a reverse proxy serving HTTPS and (e.g. Apache or Nginx) forwarding requests to your bot at http://localhost:8081 (you can change the port in the docker-compose.yml). You should use a firewall to prevent direct external requests to the bot or modify the port forwarding in the docker-compose.yml to only listen on localhost.
+You can also use telegram web hooks. Using those, Telegram will perform a REST request to your server as soon as a new message arrives. This method replaces the default long polling approach, where the backend (a.k.a. the bot) performs many iterative requests no matter if there are new messages or not. Therefore, web hooks are less resource intensive, but you need a publicly reachable, SSL-secured (https) website for this. There should be a reverse proxy serving HTTPS and (e.g. apache or nginx) forwarding requests to your bot at http://localhost:8081 (you can change the port in the docker-compose.yml). You should use a firewall to prevent direct external requests to the bot or modify the port forwarding in the docker-compose.yml to only listen on localhost.
 
-To enable web hooks, add another export statement to the others above (and keep the '/' at the end of the domain name):
+To enable web hooks, call `export TELEGRAM_WEBHOOK_URL=chat4bread.example.com/` before calling `docker-compose up`:
 
 ```bash
 export TELEGRAM_WEBHOOK_URL=chat4bread.example.com/
 ```
 
-A sample Nginx reverse proxy configuration may look like this:
+A sample nginx reverse proxy configuration may look like this:
 
 ```
 # cat /etc/nginx/sites-enabled/chat4bread.example.com
