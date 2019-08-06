@@ -36,6 +36,11 @@ func (m *Machine) Generate(phone int64, message string) (string, error) {
 		}
 
 		switch intent.Slug {
+		case "greetings":
+			if user.Kind != nil && *user.Kind == "farmer" {
+				return "Hi, this is your Chat4Bread market platform. You can buy/sell goods, lookup prices and find other farmers.", nil
+			}
+			return "Hi, this is your Chat4Bread market platform. You can buy goods, lookup prices and find farmers.", nil
 		case "get_type_farmer":
 			fallthrough // Common misclassification and not possible in this state.
 		case "pos_list":
@@ -193,7 +198,7 @@ func (m *Machine) BuyProduct(user *User, intent *Intent) (string, error) {
 	}
 
 	if intent.Mass > 0.0 {
-		offer, merchant, err := m.ORM.FindMassOffer(product.ID, intent.Dollars, intent.Mass)
+		offer, merchant, err := m.ORM.FindMassOffer(product.ID, intent.Dollars, float64(intent.Mass))
 		if err != nil {
 			return "", err
 		}

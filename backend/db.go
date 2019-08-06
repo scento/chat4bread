@@ -211,7 +211,7 @@ func (orm *ORM) FindMassOffer(product primitive.ObjectID, price float64, mass fl
 	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 	offers := orm.DB.Collection("offers")
 	var offer Offer
-	err := offers.FindOne(ctx, bson.M{"product": product, "mass": bson.M{"$gt": mass}, "normalized_price": bson.M{"$lt": price / mass}}).Decode(&offer)
+	err := offers.FindOne(ctx, bson.M{"product": product, "mass": bson.M{"$gt": mass}, "normalized_price": bson.M{"$lt": (price / mass)}}).Decode(&offer)
 	if err == mongo.ErrNoDocuments {
 		return nil, nil, nil
 	} else if err != nil {
@@ -254,16 +254,16 @@ func (orm *ORM) FindUnitOffer(product primitive.ObjectID, price float64, units u
 // ReduceMassOffer reduces the publicly available offer by a specific mass.
 func (orm *ORM) ReduceMassOffer(offer primitive.ObjectID, mass float64) error {
 	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
-	users := orm.DB.Collection("users")
-	_, err := users.UpdateOne(ctx, bson.M{"_id": offer}, bson.M{"$inc": bson.M{"mass": -1 * mass}})
+	users := orm.DB.Collection("offers")
+	_, err := users.UpdateOne(ctx, bson.M{"_id": offer}, bson.M{"$inc": bson.M{"mass": (-1 * mass)}})
 	return err
 }
 
 // ReduceUnitOffer reduces the publicly available offer by a specific amount.
 func (orm *ORM) ReduceUnitOffer(offer primitive.ObjectID, units uint64) error {
 	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
-	users := orm.DB.Collection("users")
+	users := orm.DB.Collection("offers")
 	_, err := users.UpdateOne(ctx, bson.M{"_id": offer},
-		bson.M{"$inc": bson.M{"units": -1 * int64(units)}})
+		bson.M{"$inc": bson.M{"units": (-1 * int64(units))}})
 	return err
 }
